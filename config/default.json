@@ -1,0 +1,13 @@
+{
+    "set": [
+        {
+            "name": "collabora online restart",
+            "command": "docker restart collabora_online"
+        }
+    ],
+    "log": {
+        "level": "debug",
+        "file": "service-control.log"
+    },
+    "keyDB": "keys"
+}
