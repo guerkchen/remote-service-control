@@ -6,7 +6,9 @@ const crypto = require("crypto");
 const nosql = require('nosql');
 var config = require('config');
 const { exec } = require('child_process');
+const dotenv = require('dotenv');
 
+dotenv.config();
 var logger = winston.createLogger({
     level: config.get("log.level"),
     format: winston.format.combine(
@@ -58,12 +60,12 @@ function reload_config() {
                             // create entry
                             logger.info(`Eintag ${ele.name} nicht gefunden. Ich lege ihn an.`);
                             logger.info("Generate API key");
-                            const apiKey = crypto.randomBytes(16).toString('hex');
+                            const apiKey = crypto.randomBytes(32).toString('hex');
 
                             keyDB.insert({
                                 "name": ele["name"],
                                 "apiKey": apiKey
-                            } + "\n").callback(err => {
+                            }).callback(err => {
                                 if (err) {
                                     logger.error(`Eintrag für ${ele.name} konnte nicht erfolgreich angelegt werden.`, err);
                                 } else {
@@ -83,31 +85,14 @@ function reload_config() {
 const app = express();
 app.get('/reload_config/:apiKey', (req, resApp) => {
     const apiKey = req.params.apiKey;
-    var hash = crypto.createHash('sha256').update(apiKey).digest('hex');
-
-    keyDB.find().make(filter => {
-        filter.where("name", "=", "reload_config");
-        filter.callback((err, resDB) => {
-            if (err) {
-                logger.error(`Fehler beim Suchen des Eintrags reload_config `, err);
-                resApp.status(500);
-                resApp.send("Internal Servererror");
-            } else {
-                if (resDB.length == 1) {
-                    const entry = resDB[0];
-                    if (entry.apiKey != hash) {
-                        logger.info("Fehlerhafter API-Key für reload_config");
-                        resApp.status(403);
-                        resApp.send("Fehlerhafter API-Key");
-                    } else {
-                        reload_config();
-                        resApp.status(200);
-                        resApp.send("Config geladen");
-                    }
-                }
-            }
-        });
-    });
+    if(apiKey == process.env.reload_key){
+        reload_config();
+        resApp.status(200);
+	resApp.send("config neu geladen");
+    } else {
+	resApp.status(403);
+	resApp.send("fehlerhafter API Key");
+    }   
 });
 
 app.get("/command/:apiKey", (req, resApp) => {
@@ -155,4 +140,4 @@ app.get("/command/:apiKey", (req, resApp) => {
     });
 });
 
-app.listen(3010, () => logger.info('Webserver running on port 3010'));
+app.listen(3010, "localhost", () => logger.info('Webserver running on port 3010'));
